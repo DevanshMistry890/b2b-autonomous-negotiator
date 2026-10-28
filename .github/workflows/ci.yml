@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Tests + offline evals
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unit tests
+        run: python -m pytest
+
+      # Exits non-zero if any hard safety threshold regresses:
+      # 100% leak block rate, 0 final-message leak-throughs, 100% fail-closed.
+      - name: Offline eval harness
+        run: python evals/run_evals.py
+
+  frontend:
+    name: Lint + build AG-UI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: negotiator/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: negotiator/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
